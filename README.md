@@ -1,1 +1,2 @@
-# CL_Group
+# SMU-CL_Group
+Associate Professor Cao Lei's group
