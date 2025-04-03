@@ -75,49 +75,47 @@ def Classes(plot_image, args, title=None, num=None, under_patient=False):
 
 
 # ======================= 损失和准确率可视化 ======================= #
-def Loss_Acc(args=None, train_loss=None, test_loss=None,train_acc=None, test_acc=None, k=''):
+def Loss_Acc(epochs=None, savename=None, train_loss=None, test_loss=None,train_acc=None, test_acc=None, k=''):
     # =======acc=======
     if train_acc:
-        plt.plot(range(1, args.num_epochs+1), train_acc, label='Train accuracy')
-        plt.text(args.num_epochs+0.2, train_acc[-1]-0.2, round(train_acc[-1], 3), ha='right', va='top', color='#0000ff', fontsize=15)  # 默认蓝
+        plt.plot(range(1, epochs+1), train_acc, label='Train accuracy')
+        plt.text(epochs+0.02, train_acc[-1]-0.01, round(train_acc[-1], 3), ha='right', va='top', color='#0000ff', fontsize=15)  # 默认蓝
     if test_acc:
-        plt.plot(range(1, args.num_epochs+1), test_acc, label='Test accuracy')
-        plt.text(args.num_epochs+0.2, test_acc[-1]-0.2, round(test_acc[-1], 3), ha='right', va='top', color='#ff2200', fontsize=15)  # 默认橙
+        plt.plot(range(1, epochs+1), test_acc, label='Test accuracy')
+        plt.text(epochs+0.02, test_acc[-1]-0.01, round(test_acc[-1], 3), ha='right', va='top', color='#ff2200', fontsize=15)  # 默认橙
     plt.legend(loc='best')
     plt.ylabel('Accuracy')
     plt.xlabel('Epoch')
-    plt.title(args.savename)
+    plt.title(savename)
     plt.tight_layout()
-    if args.savename is not None:
-        cur_path = os.getcwd()
-        plt.savefig('{}/结果图/{}_Acc.png'.format(cur_path, args.savename+'_k='+str(k)))
+    if savename is not None:
+        plt.savefig(f'{os.getcwd()}/结果图/{savename}_k={k}_Acc.png')
     plt.show()
 
     # =======loss=======
     if train_loss:
-        plt.plot(range(1, args.num_epochs+1), train_loss[:], label='Training loss')
+        plt.plot(range(1, epochs+1), train_loss, label='Training loss')
     if test_loss:
-        plt.plot(range(1, args.num_epochs+1), test_loss[:], label='Test loss')
+        plt.plot(range(1, epochs+1), test_loss, label='Test loss')
 
     plt.legend(loc='best')  # 图例位置
     plt.ylabel('Cross entropy')
     plt.xlabel('Epoch')
-    plt.title('{}'.format(args.savename))
+    plt.title('{}'.format(savename))
     plt.tight_layout()
-    if args.savename is not None:
-        cur_path = os.getcwd()
-        plt.savefig('{}/结果图/{}_Loss.png'.format(cur_path, args.savename+'_k='+str(k)))
+    if savename is not None:
+        plt.savefig(f'{os.getcwd()}/结果图/{savename}_k={k}_Loss.png')
     plt.show()
 
 
 # ======================= ROC曲线、AUC可视化 ======================= #
-def plot_AUC(y_scores, y_test, args, cls, k=''):
+def plot_AUC(y_scores, y_test, n_classes, cls, k='', savename=None):
     # AUC of each classes
     fpr = dict()
     tpr = dict()
     roc_auc = dict()
     spe = dict() # 特异性specificity
-    for i in range(args.num_cls):
+    for i in range(n_classes):
         fpr[i], tpr[i], _ = roc_curve(y_test[:, i], y_scores[:, i])
         roc_auc[i] = auc(fpr[i], tpr[i])
 
@@ -136,15 +134,15 @@ def plot_AUC(y_scores, y_test, args, cls, k=''):
     print('AUC micro-average: {:.4f}'.format(roc_auc["micro"]))
 
     # 计算宏平均特异性
-    spe["macro"] = sum(spe.values()) / int(args.num_cls) # 字典转列表再求和取均值
+    spe["macro"] = sum(spe.values()) / int(n_classes) # 字典转列表再求和取均值
     print('SPE macro-average: {:.4f}'.format(spe["macro"]))
 
     # AUC of macro-average
-    all_fpr = np.unique(np.concatenate([fpr[i] for i in range(args.num_cls)]))
+    all_fpr = np.unique(np.concatenate([fpr[i] for i in range(n_classes)]))
     mean_tpr = np.zeros_like(all_fpr)
-    for i in range(args.num_cls):
+    for i in range(n_classes):
         mean_tpr += np.interp(all_fpr, fpr[i], tpr[i])
-    mean_tpr /= args.num_cls
+    mean_tpr /= n_classes
     fpr["macro"] = all_fpr
     tpr["macro"] = mean_tpr
     roc_auc["macro"] = auc(fpr["macro"], tpr["macro"])
@@ -153,18 +151,17 @@ def plot_AUC(y_scores, y_test, args, cls, k=''):
     # 绘制ROC
     plt.figure(figsize=(8, 6), dpi=100)
     plt.plot([0, 1])
-    for i in range(args.num_cls):
-        plt.plot(fpr[i], tpr[i], label='ROC class {} (area = {:.4})'.format(cls[i], roc_auc[i]), linestyle='--')
+    for i in range(n_classes):
+        plt.plot(fpr[i], tpr[i], label='ROC class {} (AUC = {:.4})'.format(cls[i], roc_auc[i]), linestyle='--')
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.01])
-    plt.title('{}  ROC'.format(args.savename))
+    plt.title('{}  ROC'.format(savename))
     plt.xlabel('FPR')
     plt.ylabel('TPR')
     plt.legend(loc='best')
     plt.tight_layout()
-    if args.savename is not None:
-        cur_path = os.getcwd()
-        plt.savefig('{}/结果图/{}_AUC.png'.format(cur_path, args.savename + '_k=' + str(k)))
+    if savename is not None:
+        plt.savefig(f'{os.getcwd()}/结果图/{savename}_k={k}_AUC.png')
     plt.show()
 
     return roc_auc, spe

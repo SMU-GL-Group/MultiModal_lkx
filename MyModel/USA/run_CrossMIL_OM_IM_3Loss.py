@@ -1,4 +1,7 @@
 #coding=utf-8
+"""
+模态消融实验：不使用TEM模态时，Ours模型退化为OM、IM的简单特征融合，加上加权损失。
+"""
 import os.path
 import matplotlib.pyplot as plt
 import torch
@@ -21,31 +24,8 @@ import warnings
 from torch.nn import functional as F
 import xlwt
 import setproctitle
+import datetime
 warnings.filterwarnings("ignore")
-
-# ======================= 重写collate_fn,为了使Dataloader在batch_size不一致时也能工作 ======================= #
-def TEM_dataset_collate(batch):
-    Bags = []
-    img_OM, img_IM = [], []
-    labels = []
-    OMs = torch.tensor(0)
-    IFs = torch.tensor(0)
-    for bag, OM, IM, y in batch:
-        # Bags.append(bag)
-        Bags.append(torch.stack(bag, dim=0))
-        if not type(OM) == list:
-            img_OM.append(OM)
-        if not type(IM) == list:
-            img_IM.append(IM)
-        labels.append(y)
-
-    if len(img_OM) != 0:
-        OMs = torch.stack(img_OM) # [B,C,H,W]
-    if len(img_IM) != 0:
-        IFs = torch.stack(img_IM)
-    labels = torch.stack(labels)
-    return Bags, OMs, IFs, labels
-
 
 # ======================= 定义训练函数 ======================= #
 def train_one_epoch(loader, model, args, criterion, optimizer):
@@ -63,10 +43,8 @@ def train_one_epoch(loader, model, args, criterion, optimizer):
         target_onehot = F.one_hot(target, args.num_cls).float()
         target_onehot = target_onehot.to(device=args.device, non_blocking=True)
 
-        # 将图像数量不等的张量用0填充至等长，以便组成(Batch_size, 图像数量, 通道数, 长, 宽)的张量
-        bags = pad_sequence(bags_tensor, batch_first=True, padding_value=0).to(args.device, non_blocking=True)
         # 最终预测结果以及各模态预测结果
-        output, OM_output, IM_output, TEM_output = model(bags, OM_tensor=OM, IM_tensor=IM)
+        output, OM_output, IM_output = model(None, OM_tensor=OM, IM_tensor=IM)
 
         # 每个batch单独计算loss和预测结果pred
         pred = []
@@ -76,18 +54,16 @@ def train_one_epoch(loader, model, args, criterion, optimizer):
 
                 OM_loss = criterion(OM_output[b], target_onehot[b].unsqueeze(0))
                 IM_loss = criterion(IM_output[b], target_onehot[b].unsqueeze(0))
-                TEM_loss = criterion(TEM_output[b], target_onehot[b].unsqueeze(0))
             else:
                 fusion_loss += criterion(output[b], target_onehot[b].unsqueeze(0))
 
                 OM_loss += criterion(OM_output[b], target_onehot[b].unsqueeze(0))
                 IM_loss += criterion(IM_output[b], target_onehot[b].unsqueeze(0))
-                TEM_loss += criterion(TEM_output[b], target_onehot[b].unsqueeze(0))
 
             pred.append(torch.max(output[b], dim=1)[1])
 
         optimizer.zero_grad()
-        total_loss = 0.3*OM_loss + 0.5*IM_loss + 0.2*TEM_loss + fusion_loss
+        total_loss = (0.3/0.8)*OM_loss + (0.5/0.8)*IM_loss + fusion_loss
         total_loss.backward()
         optimizer.step()
 
@@ -124,10 +100,8 @@ def Test(loader, model, args, criterion):
             target_onehot = F.one_hot(target, args.num_cls).float()
             target_onehot = target_onehot.to(device=args.device, non_blocking=True)
 
-            # 将图像数量不等的张量用0填充至等长，以便组成(Batch_size, 图像数量, 通道数, 长, 宽)的张量
-            bags = pad_sequence(bags_tensor, batch_first=True, padding_value=0).to(args.device, non_blocking=True)
             # 光镜+荧光+电镜
-            output, OM_output, IM_output, TEM_output = model(bags, OM_tensor=OM, IM_tensor=IM)
+            output, OM_output, IM_output = model(None, OM_tensor=OM, IM_tensor=IM)
 
             # 每个batch单独计算loss和预测结果pred
             pred = []
@@ -137,19 +111,17 @@ def Test(loader, model, args, criterion):
 
                     OM_loss = criterion(OM_output[b], target_onehot[b].unsqueeze(0))
                     IM_loss = criterion(IM_output[b], target_onehot[b].unsqueeze(0))
-                    TEM_loss = criterion(TEM_output[b], target_onehot[b].unsqueeze(0))
                 else:
                     fusion_loss += criterion(output[b], target_onehot[b].unsqueeze(0))
 
                     OM_loss += criterion(OM_output[b], target_onehot[b].unsqueeze(0))
                     IM_loss += criterion(IM_output[b], target_onehot[b].unsqueeze(0))
-                    TEM_loss += criterion(TEM_output[b], target_onehot[b].unsqueeze(0))
 
                 pred.append(torch.max(output[b], dim=1)[1])
                 preds.extend(torch.max(output[b], dim=1)[1].cpu().numpy())
                 score_list.extend(output[b].cpu().numpy())
 
-            total_loss = 0.3 * OM_loss + 0.5 * IM_loss + 0.2 * TEM_loss + fusion_loss
+            total_loss = (0.3/0.8) * OM_loss + (0.5/0.8) * IM_loss + fusion_loss
 
             test_loss += total_loss.item()
 
@@ -182,13 +154,13 @@ def Test(loader, model, args, criterion):
 
 # ======================= 参数设置 ======================= #
 parser = argparse.ArgumentParser()
-from MyModel.USA import CrossMIL_TEMq_OMkv_IMkv_3Loss_250402
+from MyModel.USA import CrossMIL_OM_IM_3Loss_250403
 
 
 parser.add_argument('--Description',
-                    default='run_CrossMIL_TEMq_OMkv_IMkv_3Loss。电镜q+光镜kv+荧光kv,wLoss。电镜加权光镜、荧光。电镜特征KNN加权。模态拼接。')
-parser.add_argument('--savename', default='250402_光镜（PASM）+荧光+电镜-301+270例_CrossMIL_TEMq_OMkv_IMkv_3Loss_250402')
-setproctitle.setproctitle("lkx_预计用至04/03/17：00.pm")  # 修改进程名称（放在最前面）
+                    default='run_CrossMIL_OM_IM_3Loss。光镜+荧光,wLoss。光镜、荧光模态特征拼接。')
+parser.add_argument('--savename', default='250403_光镜（PASM）+荧光+电镜-301+270例_CrossMIL_OM_IM_3Loss_250403')
+setproctitle.setproctitle("lkx_预计用至04/04/18：00.pm")  # 修改进程名称（放在最前面）
 
 # *********************** 数据集相关 *********************** #
 parser.add_argument('--data_path', default='/public/longkaixing/MMF/datasets/光镜（PASM）+荧光+电镜-301+270例', type=str)
@@ -207,10 +179,10 @@ parser.add_argument('--sample_index', type=str,
 # ******************************************************** #
 
 parser.add_argument('--batch_size', default=4, type=int)
-parser.add_argument('--modal', default='OM_+IM+TEM', type=str, help='所用模态：IM+TEM / OM+TEM / OM+IM (OM_ 为分割后的光镜, OM-ori为分割前)')
+parser.add_argument('--modal', default='OM_+IM', type=str, help='所用模态：IM+TEM / OM+TEM / OM+IM (OM_ 为分割后的光镜, OM-ori为分割前)')
 parser.add_argument('--lr', default=5e-5, type=float)
 parser.add_argument('--num_cls', default=3, type=int, help='分为几类')
-parser.add_argument('--device', default='cuda:0', type=str)
+parser.add_argument('--device', default='cuda:1', type=str)
 parser.add_argument('--kfold', default=5, type=int)
 parser.add_argument('--weight_decay', default=5e-5, type=float)
 parser.add_argument('--CAM_img_path',
@@ -222,11 +194,11 @@ parser.add_argument('--reshape', default=[224, 224])
 criterion = nn.CrossEntropyLoss()
 
 args = parser.parse_args()
-if args.savename is not None:
-    args.savepath = '/public/longkaixing/CrossModalScale/model_save/{}'.format(args.savename)
-    setup(args, 'training')
-    os.makedirs(args.savepath, exist_ok=True)
-    writer = SummaryWriter(os.path.join(args.savepath, '../../summary'))
+
+args.savepath = '/public/longkaixing/CrossModalScale/model_save/{}'.format(args.savename)
+setup(args, 'training')
+os.makedirs(args.savepath, exist_ok=True)
+
 args.transforms = transforms.Compose([
     transforms.Resize(args.reshape, antialias=True),
     transforms.RandomHorizontalFlip(),
@@ -255,20 +227,27 @@ def main():
         #random.shuffle(test_index)
         # todo 电镜用MIL时加上 ,collate_fn=TEM_dataset_collate
         train_loader = DataLoader(data_set, batch_size=args.batch_size, sampler=train_index[:],num_workers=0,
-                                  drop_last=True,collate_fn=TEM_dataset_collate,pin_memory=False) # 锁页内存，加速数据传输读取
+                                  drop_last=True,pin_memory=False) # 锁页内存，加速数据传输读取
         test_loader = DataLoader(data_set, batch_size=args.batch_size, sampler=test_index[:],num_workers=0,
-                                 drop_last=True,collate_fn=TEM_dataset_collate,pin_memory=False)
+                                 drop_last=True,pin_memory=False)
         train_loader_lst.append(train_loader)
         test_loader_lst.append(test_loader)
 
     wb = xlwt.Workbook() # 用于记录全部折次数据
+
+    log_dir = os.path.join(args.savepath, 'tensorboard_logs')
+    os.makedirs(log_dir, exist_ok=True)  # 确保目录存在
     # ======================= 模型训练/测试 ======================= #
     for k in range(1, args.kfold+1): # 从第k折开始
+        # 获取当前时间并格式化
+        current_time = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M")
+        custom_file_name = f"_{current_time}-fold{k}.tfevents"
+        writer = SummaryWriter(log_dir=log_dir, filename_suffix=custom_file_name)
 
         # ======================= 模型设置 ======================= #
-        model = CrossMIL_TEMq_OMkv_IMkv_3Loss_250402.Model(args)
+        model = CrossMIL_OM_IM_3Loss_250403.Model(args)
         model = model.to(args.device)
-        model = nn.DataParallel(model, device_ids=[0])
+        model = nn.DataParallel(model, device_ids=[1])
         # if i == 0:
         #     print(model)
         for param in model.parameters():
@@ -294,6 +273,12 @@ def main():
             test_acc_lst.append(Test_Acc)
             test_loss_lst.append(Test_Loss)
             lr_schedule.step()  # 更新学习率
+            # 记录损失和准确率
+            writer.add_scalar('Train/Loss', Train_Loss, epoch)
+            writer.add_scalar('Train/Accuracy', Train_Acc, epoch)
+            writer.add_scalar('Test/Loss', Test_Loss, epoch)
+            writer.add_scalar('Test/Accuracy', Test_Acc, epoch)
+
         # 记录每折训练测试曲线
         k_train_acc_lst.append(train_acc_lst)
         k_train_loss_lst.append(train_loss_lst)
@@ -383,6 +368,7 @@ def main():
     k_Train_Loss = sum(k_train_loss_lst[:, -1]) / args.kfold
     k_Test_Acc = sum(k_test_acc_lst[:, -1]) / args.kfold
     k_Test_Loss = sum(k_test_loss_lst[:, -1]) / args.kfold
+    writer.close()
     print('Train_Acc: {:.4f}%, Train_Loss: {:.4f} \n Test_Acc: {:.4f}%, Test_Loss: {:.4f}'.format(
         k_Train_Acc, k_Train_Loss, k_Test_Acc, k_Test_Loss))
 

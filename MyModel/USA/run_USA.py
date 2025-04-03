@@ -13,7 +13,7 @@ from tools import visualization as vis
 import seaborn as sns
 import logging
 from MMdataset import MMdata_EMIL, MMdata_TEMrandom
-from tools.result_save import save_npy
+from tools.result_save import save_json
 from torch.utils.tensorboard import SummaryWriter
 from utils.parser import setup
 from torch.nn.utils.rnn import pad_sequence
