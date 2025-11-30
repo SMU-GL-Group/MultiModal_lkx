@@ -1,0 +1,26 @@
+# train_CMUSNet.py
+
+# 保存与记录相关设置 Save and record settings
+save_name: 251130_CMUSNet  # 本次实验保存名 save name for this experiment
+save_dir: /public/longkaixing/CrossModalScale/model_save # 保存目录 directory where all results are saved to
+
+# 数据集设置 dataset settings
+data_path: /public/longkaixing/MMF/datasets/光镜（PASM）+荧光+电镜-301+270例  # 数据集目录 dataset directory
+cls_list: ['MN', 'IgAN','LN']  # 类别名称列表 list of category names
+sample_index: /public/longkaixing/MMF/MyMethod/数据集交叉划分index/光镜（PASM）+荧光+电镜-301+270例  # 五折交叉验证划分数据集的索引路径 data index for 5-fold cross-validation
+modal: OM_+IM+TEM  # 所用模态 input modals: IM+TEM / OM+TEM / OM+IM / OM+IM+TEM
+num_cls: 3  # 类别数量 numbers of classes
+kfold: 5  # 总折次 numbers of folds
+input_size: 224  # 输入尺寸 size input to the model
+
+# 训练设置 training settings
+num_epochs: 3  # 训练轮次 number of epochs
+batch_size: 4  # 批大小 batch size
+lr: 0.00005  # 学习率 learning rate
+gpu_ids: 0, # 使用的GPU索引 index of the GPU used
+weight_decay: 0.00005
+num_workers: 0  # 线程数量 numbers of workers
+
+# 模型设置 model settings
+num_attn_heads: 4  # 注意力头数量 numbers of attention headers  # todo @罗威儿
+distance_t: 1.5  # 欧氏距离阈值 threshold of Euclidean distances  # todo @陈文杰

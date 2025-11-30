@@ -78,17 +78,20 @@ def load(fname):
     return ret
 
 
-def setup(args, log):
-    args.name = 'hetero'
-    ldir = args.savepath
+def log_setup(savepath, log):
+    name = 'hetero'
+    ldir = savepath
     if not os.path.exists(ldir):
         os.makedirs(ldir)
 
-    lfile = args.name + '_' + log + '.txt' if log else args.name + '.txt'
+    lfile = name + '_' + log + '.txt' if log else name + '.txt'
     lfile = os.path.join(ldir, lfile)
 
-    logging.basicConfig(level=logging.INFO,
-            format='%(asctime)s %(message)s', filename=lfile)
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s %(message)s',
+        filename=lfile,
+    )
     console = logging.StreamHandler()
     console.setLevel(logging.INFO)
     console.setFormatter(logging.Formatter('%(asctime)s %(message)s'))

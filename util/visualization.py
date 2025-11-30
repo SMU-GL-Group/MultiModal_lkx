@@ -1,13 +1,14 @@
-# 针对K折交叉验证的可视化
+#coding=utf-8
+"""
+针对K折交叉验证的可视化
+"""
 import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.metrics import confusion_matrix, roc_curve, auc, precision_score, recall_score, f1_score
-from data_augmentation.pytorch_grad_cam.grad_cam import GradCAM#, ScoreCAM, GradCAMPlusPlus, AblationCAM, XGradCAM, EigenCAM, FullGrad
-import cv2
+from data_augmentation.pytorch_grad_cam.grad_cam import GradCAM #, ScoreCAM, GradCAMPlusPlus, AblationCAM, XGradCAM, EigenCAM, FullGrad
 from data_augmentation.pytorch_grad_cam.utils.image import show_cam_on_image
-import _pickle as cPickle
 from torchvision import transforms
 from PIL import Image
 import os
