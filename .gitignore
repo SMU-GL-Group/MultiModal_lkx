@@ -1,0 +1,55 @@
+/MyModel/CrossFormer/pretrained weights/
+# --------------- Python ---------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.coverage
+.pytest_cache/
+.tox/
+
+# --------------- IDE ---------------
+.idea/
+.vscode/
+*.iml
+
+# --------------- Jupyter /临时文件 ---------------
+.ipynb_checkpoints/
+*.log
+
+# --------------- 模型/权重（只留本地） ---------------
+*.pth
+*.pt
+*.pkl
+*.h5
+model_save/
+pretrain_weights/
+epoch_*.pth
+
+# --------------- 数据 & 划分索引（只留本地） ---------------
+*.npy
+datasets/
+wengdanyi/
+config/
+
+# --------------- 自动生成的结果/图片 ---------------
+*.jpg
+*.png
+*.txt
+tools/*/
+!tools/*.py          # 保留 tools 下的源码，只忽略子文件夹和结果图
+
+# --------------- 项目里一堆“临时跑脚本” ---------------
+run_*.py
+test.py
+get_features.py
+EMILData.py
+modforDE*.py
+deformable-detr_*.py
+
+# --------------- 如果 requirements.txt 也想本地独享 ---------------
+requirements.txt
